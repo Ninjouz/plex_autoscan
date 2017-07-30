@@ -27,10 +27,10 @@ def build_cmd(config, section, scan_path, scan_op):
         if scan_op == 'scan':
             cmd += config['PLEX_SCANNER'] + ' --scan --refresh --section ' + str(section) + ' --directory ' + cmd_quote(
                 scan_path)
-        elif scan_op == 'analyze'
+        elif scan_op == 'analyze':
             media_id = get_media_id(config, scan_path)
             cmd += config['PLEX_SCANNER'] + ' --analyze -o ' + str(media_id)
-        elif scan_op == 'deep'
+        elif scan_op == 'deep':
             media_id = get_media_id(config, scan_path)
             cmd += config['PLEX_SCANNER'] + ' --analyze-deeply -o ' + str(media_id)
 
