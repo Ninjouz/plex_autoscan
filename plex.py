@@ -92,19 +92,19 @@ def scan(config, lock, path, scan_for, section, scan_type):
 
         # begin scan
         logger.info("Starting Plex Scanner To Scan")
-        final_cmd = build_cmd(config, section, scan_type, 'scan')
+        final_cmd = build_cmd(config, section, scan_path, 'scan')
         logger.debug(final_cmd)
         utils.run_command(final_cmd.encode("utf-8"))
         logger.info("Finished scan!")
         if config['PLEX_ANALYZE']:
             logger.info("Starting Plex Scanner To Analyze")
-            final_cmd = build_cmd(config, section, scan_type, 'analyze')
+            final_cmd = build_cmd(config, section, scan_path, 'analyze')
             logger.debug(final_cmd)
             utils.run_command(final_cmd.encode("utf-8"))
             logger.info("Finished analyze!")
         if config['PLEX_DEEP_ANALYZE']:
             logger.info("Starting Plex Scanner To Deep Analyze")
-            final_cmd = build_cmd(config, section, scan_type, 'deep')
+            final_cmd = build_cmd(config, section, scan_path, 'deep')
             logger.debug(final_cmd)
             utils.run_command(final_cmd.encode("utf-8"))
             logger.info("Finished deep analyze!")            
@@ -191,7 +191,7 @@ def get_media_id(config, media_path):
         conn = sqlite3.connect(config['PLEX_DATABASE_PATH'])
         c = conn.cursor()
         query = "select media_item_id from media_parts where file like '%s%%'" %(media_path)
-        media_id = c.execute(query).fetchone()[0]
+        media_item_id = c.execute(query).fetchone()[0]
         conn.close()
         return int(media_item_id)
     except Exception as ex:
