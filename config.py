@@ -25,6 +25,8 @@ base_config = {
     'PLEX_DATABASE_PATH': '/var/lib/plexmediaserver/Library/Application Support/Plex Media Server'
                           '/Plug-in Support/Databases/com.plexapp.plugins.library.db',
     'PLEX_LOCAL_URL': 'http://localhost:32400',
+    'PLEX_ANALYZE': True,
+    'PLEX_DEEP_ANALYZE': True,
     'PLEX_EMPTY_TRASH': False,
     'PLEX_EMPTY_TRASH_MAX_FILES': 100,
     'PLEX_EMPTY_TRASH_CONTROL_FILES': [

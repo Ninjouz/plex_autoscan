@@ -14,6 +14,34 @@ import utils
 logger = logging.getLogger("PLEX")
 logger.setLevel(logging.DEBUG)
 
+def build_cmd(config, section, scan_path, scan_op):
+    # build plex scanner command
+    logger.info("Building Plex Scan Command")
+    if os.name == 'nt':
+        final_cmd = '""%s" --scan --refresh --section %s --directory "%s""' \
+                    % (config['PLEX_SCANNER'], str(section), scan_path)
+    else:
+        cmd = 'export LD_LIBRARY_PATH=' + config['PLEX_LD_LIBRARY_PATH'] + ';'
+        if not config['USE_DOCKER']:
+            cmd += 'export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=' + config['PLEX_SUPPORT_DIR'] + ';'
+        if scan_op == 'scan':
+            cmd += config['PLEX_SCANNER'] + ' --scan --refresh --section ' + str(section) + ' --directory ' + cmd_quote(
+                scan_path)
+        elif scan_op == 'analyze'
+            media_id = get_media_id(config, scan_path)
+            cmd += config['PLEX_SCANNER'] + ' --analyze -o ' + str(media_id)
+        elif scan_op == 'deep'
+            media_id = get_media_id(config, scan_path)
+            cmd += config['PLEX_SCANNER'] + ' --analyze-deeply -o ' + str(media_id)
+
+        if config['USE_DOCKER']:
+            final_cmd = 'docker exec -i %s bash -c %s' % (cmd_quote(config['DOCKER_NAME']), cmd_quote(cmd))
+        elif config['USE_SUDO']:
+            final_cmd = 'sudo -u %s bash -c %s' % (config['PLEX_USER'], cmd_quote(cmd))
+        else:
+            final_cmd = cmd
+
+    return final_cmd
 
 def scan(config, lock, path, scan_for, section, scan_type):
     scan_path = ""
@@ -48,24 +76,6 @@ def scan(config, lock, path, scan_for, section, scan_type):
         # old sonarr doesnt pass the sonarr_episodefile_path in webhook, so we cannot check until this is corrected.
         scan_path = path.strip()
 
-    # build plex scanner command
-    if os.name == 'nt':
-        final_cmd = '""%s" --scan --refresh --section %s --directory "%s""' \
-                    % (config['PLEX_SCANNER'], str(section), scan_path)
-    else:
-        cmd = 'export LD_LIBRARY_PATH=' + config['PLEX_LD_LIBRARY_PATH'] + ';'
-        if not config['USE_DOCKER']:
-            cmd += 'export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=' + config['PLEX_SUPPORT_DIR'] + ';'
-        cmd += config['PLEX_SCANNER'] + ' --scan --refresh --section ' + str(section) + ' --directory ' + cmd_quote(
-            scan_path)
-
-        if config['USE_DOCKER']:
-            final_cmd = 'docker exec -i %s bash -c %s' % (cmd_quote(config['DOCKER_NAME']), cmd_quote(cmd))
-        elif config['USE_SUDO']:
-            final_cmd = 'sudo -u %s bash -c %s' % (config['PLEX_USER'], cmd_quote(cmd))
-        else:
-            final_cmd = cmd
-
     # invoke plex scanner
     logger.debug("Waiting for turn in the scan request backlog...")
     with lock:
@@ -81,10 +91,23 @@ def scan(config, lock, path, scan_for, section, scan_type):
                 logger.info("No '%s' processes were found.", scanner_name)
 
         # begin scan
-        logger.info("Starting Plex Scanner")
+        logger.info("Starting Plex Scanner To Scan")
+        final_cmd = build_cmd(config, section, scan_type, 'scan')
         logger.debug(final_cmd)
         utils.run_command(final_cmd.encode("utf-8"))
         logger.info("Finished scan!")
+        if config['PLEX_ANALYZE']:
+            logger.info("Starting Plex Scanner To Analyze")
+            final_cmd = build_cmd(config, section, scan_type, 'analyze')
+            logger.debug(final_cmd)
+            utils.run_command(final_cmd.encode("utf-8"))
+            logger.info("Finished analyze!")
+        if config['PLEX_DEEP_ANALYZE']:
+            logger.info("Starting Plex Scanner To Deep Analyze")
+            final_cmd = build_cmd(config, section, scan_type, 'deep')
+            logger.debug(final_cmd)
+            utils.run_command(final_cmd.encode("utf-8"))
+            logger.info("Finished deep analyze!")            
         # empty trash if configured
         if config['PLEX_EMPTY_TRASH'] and config['PLEX_TOKEN'] and config['PLEX_EMPTY_TRASH_MAX_FILES']:
             logger.info("Checking deleted item count in 5 seconds...")
@@ -160,4 +183,17 @@ def get_deleted_count(config):
         return int(deleted_metadata) + int(deleted_media_parts)
     except Exception as ex:
         logger.exception("Exception retrieving deleted item count from database: ")
+        return -1
+
+
+def get_media_id(config, media_path):
+    try:
+        conn = sqlite3.connect(config['PLEX_DATABASE_PATH'])
+        c = conn.cursor()
+        query = "select media_item_id from media_parts where file like '%s%%'" %(media_path)
+        media_id = c.execute(query).fetchone()[0]
+        conn.close()
+        return int(media_item_id)
+    except Exception as ex:
+        logger.exception("Exception retrieving media_item_id from database: ")
         return -1
